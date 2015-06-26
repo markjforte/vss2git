@@ -69,7 +69,6 @@
     <Compile Include="GitExporter.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="GitExporterAlt.cs" />
     <Compile Include="ProcessException.cs" />
     <Compile Include="ExceptionFormatter.cs">
     </Compile>

@@ -39,6 +39,8 @@ namespace Hpdi.Vss2Git
         private readonly ChangesetBuilder changesetBuilder;
         private readonly StreamCopier streamCopier = new StreamCopier();
         private readonly HashSet<string> tagsUsed = new HashSet<string>();
+        private readonly string repoPath;
+        private readonly FileAnalyzer fileAnalyzer;
 
         private string emailDomain = "localhost";
         public string EmailDomain
@@ -61,16 +63,19 @@ namespace Hpdi.Vss2Git
             set { forceAnnotatedTags = value; }
         }
 
-        public GitExporter(WorkQueue workQueue, Logger logger,
-            RevisionAnalyzer revisionAnalyzer, ChangesetBuilder changesetBuilder)
+        public GitExporter(WorkQueue workQueue, Logger logger, 
+            RevisionAnalyzer revisionAnalyzer, ChangesetBuilder changesetBuilder,
+            string repoPath, FileAnalyzer fileAnalyzer)
             : base(workQueue, logger)
         {
             this.database = revisionAnalyzer.Database;
             this.revisionAnalyzer = revisionAnalyzer;
             this.changesetBuilder = changesetBuilder;
+            this.repoPath = repoPath;
+            this.fileAnalyzer = fileAnalyzer;
         }
 
-        public void ExportToGit(string repoPath)
+        public void ExportToGit()
         {
             workQueue.AddLast(delegate(object work)
             {
@@ -114,6 +119,7 @@ namespace Hpdi.Vss2Git
                     });
                 }
 
+                // Note, when using alternate logic, the VssPathMapper is not needed
                 var pathMapper = new VssPathMapper();
 
                 // create mappings for root projects
@@ -244,7 +250,10 @@ namespace Hpdi.Vss2Git
 
                 AbortRetryIgnore(delegate
                 {
-                    needCommit |= ReplayRevision(pathMapper, revision, git, labels);
+                    if (fileAnalyzer == null)
+                        needCommit |= ReplayRevision(pathMapper, revision, git, labels);
+                    else
+                        needCommit |= ReplayRevisionAlt(revision, git, labels);
                 });
             }
             return needCommit;
@@ -561,6 +570,34 @@ namespace Hpdi.Vss2Git
             return needCommit;
         }
 
+        private bool ReplayRevisionAlt(Revision revision,
+            GitWrapper git, LinkedList<Revision> labels)
+        {
+            var needCommit = false;
+            var actionType = revision.Action.Type;
+            // We don't worry about projects! <smile>
+            if (
+                (!revision.Item.IsProject)
+                &&
+                (actionType == VssActionType.Create) || (actionType == VssActionType.Edit)
+            )
+            {
+                FileLocation fileLocation;
+                if (fileAnalyzer.SortedFileLocations.TryGetValue(revision.Item.PhysicalName, out fileLocation))
+                {
+                    var path = VssPathMapper.GetWorkingPath(repoPath, fileLocation.Path);
+                    logger.WriteLine("{0}: {1} revision {2}", fileLocation.Path, actionType, revision.Version);
+                    if (WriteRevisionTo(revision.Item.PhysicalName, revision.Version, path))
+                    {
+                        // add file explicitly, so it is visible to subsequent git operations
+                        git.Add(path);
+                        needCommit = true;
+                    }
+                }
+            }
+            return needCommit;
+        }
+        
         private bool CommitChangeset(GitWrapper git, Changeset changeset)
         {
             var result = false;

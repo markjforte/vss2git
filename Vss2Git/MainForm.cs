@@ -97,7 +97,9 @@ namespace Hpdi.Vss2Git
                     return;
                 }
 
-                if (alternateLogicCheckBox.Checked)
+                if (!alternateLogicCheckBox.Checked)
+                    fileAnalyzer = null;
+                else
                 {
                     projectAnalyzer = new ProjectAnalyzer(workQueue, logger, db);
                     if (!string.IsNullOrEmpty(excludeTextBox.Text))
@@ -128,34 +130,17 @@ namespace Hpdi.Vss2Git
 
                 if (!string.IsNullOrEmpty(outDirTextBox.Text))
                 {
-                    if (!alternateLogicCheckBox.Checked)
+                    var gitExporter = new GitExporter(workQueue, logger,
+                        revisionAnalyzer, changesetBuilder, outDirTextBox.Text, fileAnalyzer);
+                    if (!string.IsNullOrEmpty(domainTextBox.Text))
                     {
-                        var gitExporter = new GitExporter(workQueue, logger,
-                            revisionAnalyzer, changesetBuilder);
-                        if (!string.IsNullOrEmpty(domainTextBox.Text))
-                        {
-                            gitExporter.EmailDomain = domainTextBox.Text;
-                        }
-                        if (!transcodeCheckBox.Checked)
-                        {
-                            gitExporter.CommitEncoding = encoding;
-                        }
-                        gitExporter.ExportToGit(outDirTextBox.Text);
+                        gitExporter.EmailDomain = domainTextBox.Text;
                     }
-                    else
+                    if (!transcodeCheckBox.Checked)
                     {
-                        var gitExporter = new GitExporterAlt(workQueue, logger, 
-                            revisionAnalyzer, changesetBuilder, outDirTextBox.Text, fileAnalyzer);
-                        if (!string.IsNullOrEmpty(domainTextBox.Text))
-                        {
-                            gitExporter.EmailDomain = domainTextBox.Text;
-                        }
-                        if (!transcodeCheckBox.Checked)
-                        {
-                            gitExporter.CommitEncoding = encoding;
-                        }
-                        //gitExporter.ExportToGit();
+                        gitExporter.CommitEncoding = encoding;
                     }
+                    //gitExporter.ExportToGit();
                 }
 
                 workQueue.Idle += delegate
