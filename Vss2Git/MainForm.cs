@@ -31,6 +31,8 @@ namespace Hpdi.Vss2Git
         private readonly Dictionary<int, EncodingInfo> codePages = new Dictionary<int, EncodingInfo>();
         private readonly WorkQueue workQueue = new WorkQueue(1);
         private Logger logger = Logger.Null;
+        private ProjectAnalyzer projectAnalyzer;
+        private FileAnalyzer fileAnalyzer;
         private RevisionAnalyzer revisionAnalyzer;
         private ChangesetBuilder changesetBuilder;
 
@@ -49,7 +51,7 @@ namespace Hpdi.Vss2Git
             try
             {
                 OpenLog(logTextBox.Text);
-
+                
                 logger.WriteLine("VSS2Git version {0}", Assembly.GetExecutingAssembly().GetName().Version);
 
                 WriteSettings();
@@ -80,6 +82,8 @@ namespace Hpdi.Vss2Git
                 {
                     MessageBox.Show(ex.Message, "Invalid project path",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    logger.Dispose();
+                    logger = Logger.Null;
                     return;
                 }
 
@@ -88,7 +92,26 @@ namespace Hpdi.Vss2Git
                 {
                     MessageBox.Show(path + " is not a project", "Invalid project path",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    logger.Dispose();
+                    logger = Logger.Null;
                     return;
+                }
+
+                if (alternateLogicCheckBox.Checked)
+                {
+                    projectAnalyzer = new ProjectAnalyzer(workQueue, logger, db);
+                    if (!string.IsNullOrEmpty(excludeTextBox.Text))
+                    {
+                        projectAnalyzer.ExcludeFiles = excludeTextBox.Text;
+                    }
+                    projectAnalyzer.AddItem(project);
+
+                    fileAnalyzer = new FileAnalyzer(workQueue, logger, projectAnalyzer);
+                    if (!string.IsNullOrEmpty(excludeTextBox.Text))
+                    {
+                        fileAnalyzer.ExcludeFiles = excludeTextBox.Text;
+                    }
+                    fileAnalyzer.AddItem(project);                    
                 }
 
                 revisionAnalyzer = new RevisionAnalyzer(workQueue, logger, db);
@@ -105,17 +128,34 @@ namespace Hpdi.Vss2Git
 
                 if (!string.IsNullOrEmpty(outDirTextBox.Text))
                 {
-                    var gitExporter = new GitExporter(workQueue, logger,
-                        revisionAnalyzer, changesetBuilder);
-                    if (!string.IsNullOrEmpty(domainTextBox.Text))
+                    if (!alternateLogicCheckBox.Checked)
                     {
-                        gitExporter.EmailDomain = domainTextBox.Text;
+                        var gitExporter = new GitExporter(workQueue, logger,
+                            revisionAnalyzer, changesetBuilder);
+                        if (!string.IsNullOrEmpty(domainTextBox.Text))
+                        {
+                            gitExporter.EmailDomain = domainTextBox.Text;
+                        }
+                        if (!transcodeCheckBox.Checked)
+                        {
+                            gitExporter.CommitEncoding = encoding;
+                        }
+                        gitExporter.ExportToGit(outDirTextBox.Text);
                     }
-                    if (!transcodeCheckBox.Checked)
+                    else
                     {
-                        gitExporter.CommitEncoding = encoding;
+                        var gitExporter = new GitExporterAlt(workQueue, logger, 
+                            revisionAnalyzer, changesetBuilder, outDirTextBox.Text, fileAnalyzer);
+                        if (!string.IsNullOrEmpty(domainTextBox.Text))
+                        {
+                            gitExporter.EmailDomain = domainTextBox.Text;
+                        }
+                        if (!transcodeCheckBox.Checked)
+                        {
+                            gitExporter.CommitEncoding = encoding;
+                        }
+                        //gitExporter.ExportToGit();
                     }
-                    gitExporter.ExportToGit(outDirTextBox.Text);
                 }
 
                 workQueue.Idle += delegate
@@ -157,6 +197,8 @@ namespace Hpdi.Vss2Git
 
             if (workQueue.IsIdle)
             {
+                projectAnalyzer = null;
+                fileAnalyzer = null;
                 revisionAnalyzer = null;
                 changesetBuilder = null;
 
@@ -230,6 +272,7 @@ namespace Hpdi.Vss2Git
             forceAnnotatedCheckBox.Checked = settings.ForceAnnotatedTags;
             anyCommentUpDown.Value = settings.AnyCommentSeconds;
             sameCommentUpDown.Value = settings.SameCommentSeconds;
+            alternateLogicCheckBox.Checked = settings.AlternateLogic;
         }
 
         private void WriteSettings()
@@ -245,6 +288,7 @@ namespace Hpdi.Vss2Git
             settings.ForceAnnotatedTags = forceAnnotatedCheckBox.Checked;
             settings.AnyCommentSeconds = (int)anyCommentUpDown.Value;
             settings.SameCommentSeconds = (int)sameCommentUpDown.Value;
+            settings.AlternateLogic = alternateLogicCheckBox.Checked;
             settings.Save();
         }
     }

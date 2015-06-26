@@ -3,7 +3,7 @@
   <Profiles />
   <Settings>
     <Setting Name="VssDirectory" Type="System.String" Scope="User">
-      <Value Profile="(Default)" />
+      <Value Profile="(Default)">Z:\MyNetworkBackups\VSS\TestVss2Git</Value>
     </Setting>
     <Setting Name="VssProject" Type="System.String" Scope="User">
       <Value Profile="(Default)">$</Value>
@@ -12,10 +12,10 @@
       <Value Profile="(Default)" />
     </Setting>
     <Setting Name="GitDirectory" Type="System.String" Scope="User">
-      <Value Profile="(Default)" />
+      <Value Profile="(Default)">E:\GitRepo\Vss2Git01</Value>
     </Setting>
     <Setting Name="DefaultEmailDomain" Type="System.String" Scope="User">
-      <Value Profile="(Default)">localhost</Value>
+      <Value Profile="(Default)">lpsvaluations.com</Value>
     </Setting>
     <Setting Name="LogFile" Type="System.String" Scope="User">
       <Value Profile="(Default)">Vss2Git.log</Value>
@@ -30,6 +30,9 @@
       <Value Profile="(Default)">600</Value>
     </Setting>
     <Setting Name="ForceAnnotatedTags" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="AlternateLogic" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">True</Value>
     </Setting>
   </Settings>
