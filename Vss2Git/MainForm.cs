@@ -140,7 +140,7 @@ namespace Hpdi.Vss2Git
                     {
                         gitExporter.CommitEncoding = encoding;
                     }
-                    //gitExporter.ExportToGit();
+                    gitExporter.ExportToGit();
                 }
 
                 workQueue.Idle += delegate
