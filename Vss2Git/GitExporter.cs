@@ -32,7 +32,7 @@ namespace Hpdi.Vss2Git
     /// <author>Trevor Robinson</author>
     class GitExporter : Worker
     {
-        private const string DefaultComment = "Vss2Git";
+        private const string DefaultComment = "(none)";
 
         private readonly VssDatabase database;
         private readonly RevisionAnalyzer revisionAnalyzer;
@@ -604,8 +604,12 @@ namespace Hpdi.Vss2Git
             AbortRetryIgnore(delegate
             {
                 result = git.AddAll() &&
-                    git.Commit(changeset.User, GetEmail(changeset.User),
-                    changeset.Comment ?? DefaultComment, changeset.DateTime);
+                    git.Commit(
+                            changeset.User, 
+                            GetEmail(changeset.User),
+                            GetComment(changeset),                            
+                            changeset.DateTime
+                        );
             });
             return result;
         }
@@ -655,6 +659,19 @@ namespace Hpdi.Vss2Git
             return false;
         }
 
+        private string GetComment(Changeset changeset)
+        {
+            var cmt = (changeset.Comment ?? DefaultComment);
+            if (
+                (changeset.DateTime.CompareTo(DateTime.Parse("2011-01-01")) < 0) 
+                &&
+                cmt.Contains("BC")
+            )
+                cmt = cmt.Replace("#", "#=");
+
+            return cmt + "\r\n" + changeset.User + " " + changeset.DateTime.ToString("yyyy-MM-dd hh:mmtt");
+        }
+        
         private string GetEmail(string user)
         {
             // TODO: user-defined mapping of user names to email addresses
