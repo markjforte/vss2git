@@ -73,6 +73,11 @@ The following links may be useful to anyone migrating from VSS and/or to Git. If
 
 ## Release Notes ##
 
+**markjforte (26 Jun 2015)**
+
+Added alternate logic which can be enabled via a new checkbox
+  * Before, for a given file, it tried to reply the entire history, including the file’s “moves”, “shares”, etc.  For files like ours, that were "shared" then "deleted" from the old location, this did not work.  I refactored it to instead, for each file, determine the current location, and reply its entire revision history (but not the “moves”, “shares”, etc) strictly to the current location.
+
 **1.0.10 (6 Sep 2010)**
 
 Bug fixes based on patches from Matthias Luescher:
