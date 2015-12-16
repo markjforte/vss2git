@@ -15,6 +15,10 @@ namespace Hpdi.Vss2Git
     class FileAnalyzer : Worker
     {
         private readonly ProjectAnalyzer projectAnalyzer;
+        public string vssRootProjectPath
+        {
+            get { return projectAnalyzer.vssRootProjectPath; } 
+        }
 
         private string excludeFiles;
         public string ExcludeFiles

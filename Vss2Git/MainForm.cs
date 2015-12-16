@@ -101,12 +101,12 @@ namespace Hpdi.Vss2Git
                     fileAnalyzer = null;
                 else
                 {
-                    projectAnalyzer = new ProjectAnalyzer(workQueue, logger, db);
+                    projectAnalyzer = new ProjectAnalyzer(workQueue, logger, project);
                     if (!string.IsNullOrEmpty(excludeTextBox.Text))
                     {
                         projectAnalyzer.ExcludeFiles = excludeTextBox.Text;
                     }
-                    projectAnalyzer.AddItem(project);
+                    projectAnalyzer.AnalyzeProject();
 
                     fileAnalyzer = new FileAnalyzer(workQueue, logger, projectAnalyzer);
                     if (!string.IsNullOrEmpty(excludeTextBox.Text))
