@@ -42,6 +42,7 @@ namespace Hpdi.Vss2Git
         private readonly HashSet<string> tagsUsed = new HashSet<string>();
         private readonly string repoPath;
         private readonly FileAnalyzer fileAnalyzer;
+        private readonly bool inheritProjectDir;
 
         private string emailDomain = "localhost";
         public string EmailDomain
@@ -66,7 +67,7 @@ namespace Hpdi.Vss2Git
 
         public GitExporter(WorkQueue workQueue, Logger logger, 
             RevisionAnalyzer revisionAnalyzer, ChangesetBuilder changesetBuilder,
-            string repoPath, FileAnalyzer fileAnalyzer)
+            string repoPath, FileAnalyzer fileAnalyzer, bool inheritProjectDir = false)
             : base(workQueue, logger)
         {
             this.database = revisionAnalyzer.Database;
@@ -74,6 +75,7 @@ namespace Hpdi.Vss2Git
             this.changesetBuilder = changesetBuilder;
             this.repoPath = repoPath;
             this.fileAnalyzer = fileAnalyzer;
+            this.inheritProjectDir = inheritProjectDir;
         }
 
         public void ExportToGit()
@@ -120,14 +122,18 @@ namespace Hpdi.Vss2Git
                     });
                 }
 
-                // Note, when using alternate logic, the VssPathMapper is not needed
-                var pathMapper = new VssPathMapper();
-
-                // create mappings for root projects
-                foreach (var rootProject in revisionAnalyzer.RootProjects)
+                // Note, when using alternate logic (fileAnalyzer != null), the VssPathMapper is not needed
+                VssPathMapper pathMapper = null;
+                if (fileAnalyzer == null)
                 {
-                    var rootPath = VssPathMapper.GetWorkingPath(repoPath, rootProject.Path);
-                    pathMapper.SetProjectPath(rootProject.PhysicalName, rootPath, rootProject.Path);
+                    pathMapper = new VssPathMapper();
+
+                    // create mappings for root projects
+                    foreach (var rootProject in revisionAnalyzer.RootProjects)
+                    {
+                        var rootPath = inheritProjectDir ? VssPathMapper.GetWorkingPath(repoPath, rootProject.Path) : repoPath;
+                        pathMapper.SetProjectPath(rootProject.PhysicalName, rootPath, rootProject.Path);
+                    }
                 }
 
                 // replay each changeset
@@ -586,7 +592,7 @@ namespace Hpdi.Vss2Git
                 FileLocation fileLocation;
                 if (fileAnalyzer.SortedFileLocations.TryGetValue(revision.Item.PhysicalName, out fileLocation))
                 {
-                    var path = VssPathMapper.GetWorkingPath(repoPath, fileLocation.Path);
+                    var path = VssPathMapper.GetWorkingPath(repoPath, fileLocation.Path, inheritProjectDir ? "" : fileAnalyzer.vssRootProjectPath);
                     logger.WriteLine("{0}: {1} revision {2}", fileLocation.Path, actionType, revision.Version);
                     if (WriteRevisionTo(revision.Item.PhysicalName, revision.Version, path))
                     {

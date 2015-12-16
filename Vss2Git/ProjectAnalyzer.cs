@@ -20,16 +20,10 @@ namespace Hpdi.Vss2Git
             set { excludeFiles = value; }
         }
 
-        private readonly VssDatabase database;
-        public VssDatabase Database
+        private readonly VssProject vssRootProject;
+        public string vssRootProjectPath
         {
-            get { return database; }
-        }
-
-        private readonly LinkedList<VssProject> rootProjects = new LinkedList<VssProject>();
-        public IEnumerable<VssProject> RootProjects
-        {
-            get { return rootProjects; }
+            get { return vssRootProject.Path; }
         }
 
         private readonly SortedDictionary<String, ProjectLocation> sortedProjectLocations =
@@ -51,25 +45,14 @@ namespace Hpdi.Vss2Git
             get { return Thread.VolatileRead(ref projectCount); }
         }
 
-        public ProjectAnalyzer(WorkQueue workQueue, Logger logger, VssDatabase database)
+        public ProjectAnalyzer(WorkQueue workQueue, Logger logger, VssProject vssRootProject)
             : base(workQueue, logger)
         {
-            this.database = database;
+            this.vssRootProject = vssRootProject;
         }
 
-        public void AddItem(VssProject project)
+        public void AnalyzeProject()
         {
-            if (project == null)
-            {
-                throw new ArgumentNullException("project");
-            }
-            else if (project.Database != database)
-            {
-                throw new ArgumentException("Project database mismatch", "project");
-            }
-
-            rootProjects.AddLast(project);
-
             PathMatcher exclusionMatcher = null;
             if (!string.IsNullOrEmpty(excludeFiles))
             {
@@ -83,12 +66,12 @@ namespace Hpdi.Vss2Git
                 logger.WriteSectionSeparator();
                 LogStatus(work, "Building active project list");
 
-                logger.WriteLine("Root project: {0}", project.Path);
+                logger.WriteLine("Root project: {0}", vssRootProject.Path);
                 logger.WriteLine("Excluded files: {0}", excludeFiles);
 
                 int excludedProjects = 0;
                 var stopwatch = Stopwatch.StartNew();
-                VssUtil.RecurseItems(project,
+                VssUtil.RecurseItems(vssRootProject,
                     delegate(VssProject subproject)
                     {
                         if (workQueue.IsAborting)
