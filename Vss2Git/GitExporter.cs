@@ -42,6 +42,8 @@ namespace Hpdi.Vss2Git
         private readonly string repoPath;
         private readonly FileAnalyzer fileAnalyzer;
         private readonly bool inheritProjectDir;
+        private readonly string branch;
+        private readonly bool resumeSync;
 
         private string emailDomain = "localhost";
         public string EmailDomain
@@ -66,7 +68,8 @@ namespace Hpdi.Vss2Git
 
         public GitExporter(WorkQueue workQueue, Logger logger, 
             RevisionAnalyzer revisionAnalyzer, ChangesetBuilder changesetBuilder,
-            string repoPath, FileAnalyzer fileAnalyzer, bool inheritProjectDir = false)
+            string repoPath, FileAnalyzer fileAnalyzer, bool inheritProjectDir = false, 
+            string branch = "", bool resumeSync = false)
             : base(workQueue, logger)
         {
             this.database = revisionAnalyzer.Database;
@@ -75,6 +78,8 @@ namespace Hpdi.Vss2Git
             this.repoPath = repoPath;
             this.fileAnalyzer = fileAnalyzer;
             this.inheritProjectDir = inheritProjectDir;
+            this.branch = branch;
+            this.resumeSync = resumeSync;
         }
 
         public void ExportToGit()
@@ -119,6 +124,33 @@ namespace Hpdi.Vss2Git
                     {
                         git.SetConfig("i18n.commitencoding", commitEncoding.WebName);
                     });
+
+                    if (workQueue.IsAborting)
+                        return;
+                }
+
+                if (branch != "")
+                {
+                    AbortRetryIgnore(delegate
+                    {
+                        git.VerifyCurrentBranch(branch);
+                    });
+
+                    if (workQueue.IsAborting)
+                        return;
+                }
+
+                bool syncAllOrResumeAfterFound = !resumeSync;
+                DateTime? resumeAfter = null;
+                if (resumeSync)
+                {
+                    AbortRetryIgnore(delegate
+                    {
+                        resumeAfter = git.GetLastCommit();
+                    });
+                    
+                    if (workQueue.IsAborting)
+                        return;
                 }
 
                 // Note, when using alternate logic (fileAnalyzer != null), the VssPathMapper is not needed
@@ -136,7 +168,7 @@ namespace Hpdi.Vss2Git
                 }
 
                 // replay each changeset
-                var changesetId = 1;
+                var changesetId = 0;
                 var changesets = changesetBuilder.Changesets;
                 var commitCount = 0;
                 var tagCount = 0;
@@ -145,95 +177,109 @@ namespace Hpdi.Vss2Git
                 tagsUsed.Clear();
                 foreach (var changeset in changesets)
                 {
-                    var changesetDesc = string.Format(CultureInfo.InvariantCulture,
-                        "changeset {0} from {1}", changesetId, changeset.DateTime);
-
-                    // replay each revision in changeset
-                    LogStatus(work, "Replaying " + changesetDesc);
-                    labels.Clear();
-                    replayStopwatch.Start();
-                    bool needCommit;
-                    try
-                    {
-                        needCommit = ReplayChangeset(pathMapper, changeset, git, labels);
-                    }
-                    finally
-                    {
-                        replayStopwatch.Stop();
-                    }
-
-                    if (workQueue.IsAborting)
-                    {
-                        return;
-                    }
-
-                    // commit changes
-                    if (needCommit)
-                    {
-                        LogStatus(work, "Committing " + changesetDesc);
-                        if (CommitChangeset(git, changeset))
-                        {
-                            ++commitCount;
-                        }
-                    }
-
-                    if (workQueue.IsAborting)
-                    {
-                        return;
-                    }
-
-                    // create tags for any labels in the changeset
-                    if (labels.Count > 0)
-                    {
-                        foreach (Revision label in labels)
-                        {
-                            var labelName = ((VssLabelAction)label.Action).Label;
-                            if (string.IsNullOrEmpty(labelName))
-                            {
-                                logger.WriteLine("NOTE: Ignoring empty label");
-                            }
-                            else if (commitCount == 0)
-                            {
-                                logger.WriteLine("NOTE: Ignoring label '{0}' before initial commit", labelName);
-                            }
-                            else
-                            {
-                                var tagName = GetTagFromLabel(labelName);
-
-                                var tagMessage = "Creating tag " + tagName;
-                                if (tagName != labelName)
-                                {
-                                    tagMessage += " for label '" + labelName + "'";
-                                }
-                                LogStatus(work, tagMessage);
-
-                                // annotated tags require (and are implied by) a tag message;
-                                // tools like Mercurial's git converter only import annotated tags
-                                var tagComment = label.Comment;
-                                if (string.IsNullOrEmpty(tagComment) && forceAnnotatedTags)
-                                {
-                                    // use the original VSS label as the tag message if none was provided
-                                    tagComment = labelName;
-                                }
-
-                                if (AbortRetryIgnore(
-                                    delegate
-                                    {
-                                        git.Tag(tagName, label.User, GetEmail(label.User),
-                                            tagComment, label.DateTime);
-                                    }))
-                                {
-                                    ++tagCount;
-                                }
-                            }
-                        }
-                    }
-
                     ++changesetId;
+                    if (!syncAllOrResumeAfterFound)
+                    {
+                        if (resumeAfter.Equals(changeset.DateTime))
+                            syncAllOrResumeAfterFound = true;
+                        continue;
+                    }
+                    if (syncAllOrResumeAfterFound)
+                    {
+                        var changesetDesc = string.Format(CultureInfo.InvariantCulture,
+                            "changeset {0} from {1}", changesetId, changeset.DateTime);
+
+                        // replay each revision in changeset
+                        LogStatus(work, "Replaying " + changesetDesc);
+                        labels.Clear();
+                        replayStopwatch.Start();
+                        bool needCommit;
+                        try
+                        {
+                            needCommit = ReplayChangeset(pathMapper, changeset, git, labels);
+                        }
+                        finally
+                        {
+                            replayStopwatch.Stop();
+                        }
+
+                        if (workQueue.IsAborting)
+                        {
+                            return;
+                        }
+
+                        // commit changes
+                        if (needCommit)
+                        {
+                            LogStatus(work, "Committing " + changesetDesc);
+                            if (CommitChangeset(git, changeset))
+                            {
+                                ++commitCount;
+                            }
+                        }
+
+                        if (workQueue.IsAborting)
+                        {
+                            return;
+                        }
+
+                        // create tags for any labels in the changeset
+                        if (labels.Count > 0)
+                        {
+                            foreach (Revision label in labels)
+                            {
+                                var labelName = ((VssLabelAction)label.Action).Label;
+                                if (string.IsNullOrEmpty(labelName))
+                                {
+                                    logger.WriteLine("NOTE: Ignoring empty label");
+                                }
+                                else if (commitCount == 0)
+                                {
+                                    logger.WriteLine("NOTE: Ignoring label '{0}' before initial commit", labelName);
+                                }
+                                else
+                                {
+                                    var tagName = GetTagFromLabel(labelName);
+
+                                    var tagMessage = "Creating tag " + tagName;
+                                    if (tagName != labelName)
+                                    {
+                                        tagMessage += " for label '" + labelName + "'";
+                                    }
+                                    LogStatus(work, tagMessage);
+
+                                    // annotated tags require (and are implied by) a tag message;
+                                    // tools like Mercurial's git converter only import annotated tags
+                                    var tagComment = label.Comment;
+                                    if (string.IsNullOrEmpty(tagComment) && forceAnnotatedTags)
+                                    {
+                                        // use the original VSS label as the tag message if none was provided
+                                        tagComment = labelName;
+                                    }
+
+                                    if (AbortRetryIgnore(
+                                        delegate
+                                        {
+                                            git.Tag(tagName, label.User, GetEmail(label.User),
+                                                tagComment, label.DateTime);
+                                        }))
+                                    {
+                                        ++tagCount;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 stopwatch.Stop();
 
+                if (!syncAllOrResumeAfterFound)
+                {
+                    logger.WriteLine("Unable to Resume Sync: VSS changeset at {0} not found.", resumeAfter);
+                    throw new ProcessException(string.Format("Unable to Resume Sync: VSS changeset at {0} not found.", resumeAfter), null, null);
+                }
+ 
                 logger.WriteSectionSeparator();
                 logger.WriteLine("Git export complete in {0:HH:mm:ss}", new DateTime(stopwatch.ElapsedTicks));
                 logger.WriteLine("Replay time: {0:HH:mm:ss}", new DateTime(replayStopwatch.ElapsedTicks));

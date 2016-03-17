@@ -131,7 +131,8 @@ namespace Hpdi.Vss2Git
                 if (!string.IsNullOrEmpty(outDirTextBox.Text))
                 {
                     var gitExporter = new GitExporter(workQueue, logger,
-                        revisionAnalyzer, changesetBuilder, outDirTextBox.Text, fileAnalyzer);
+                        revisionAnalyzer, changesetBuilder, outDirTextBox.Text, fileAnalyzer, 
+                        false, branchTextBox.Text, resumeSyncCheckBox.Checked);
                     if (!string.IsNullOrEmpty(domainTextBox.Text))
                     {
                         gitExporter.EmailDomain = domainTextBox.Text;
@@ -258,6 +259,8 @@ namespace Hpdi.Vss2Git
             anyCommentUpDown.Value = settings.AnyCommentSeconds;
             sameCommentUpDown.Value = settings.SameCommentSeconds;
             alternateLogicCheckBox.Checked = settings.AlternateLogic;
+            branchTextBox.Text = settings.Branch;
+            resumeSyncCheckBox.Checked = settings.ResumeSync;
         }
 
         private void WriteSettings()
@@ -274,7 +277,15 @@ namespace Hpdi.Vss2Git
             settings.AnyCommentSeconds = (int)anyCommentUpDown.Value;
             settings.SameCommentSeconds = (int)sameCommentUpDown.Value;
             settings.AlternateLogic = alternateLogicCheckBox.Checked;
+            settings.Branch = branchTextBox.Text;
+            settings.ResumeSync = resumeSyncCheckBox.Checked;
             settings.Save();
+        }
+
+        private void alternateLogicCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            resumeSyncCheckBox.Enabled = alternateLogicCheckBox.Checked;
+            if (!resumeSyncCheckBox.Enabled) { resumeSyncCheckBox.Checked = false; }
         }
     }
 }

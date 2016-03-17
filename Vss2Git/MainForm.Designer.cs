@@ -65,6 +65,9 @@
             this.label1 = new System.Windows.Forms.Label();
             this.anyCommentUpDown = new System.Windows.Forms.NumericUpDown();
             this.alternateLogicCheckBox = new System.Windows.Forms.CheckBox();
+            this.branchTextBox = new System.Windows.Forms.TextBox();
+            this.branchLabel = new System.Windows.Forms.Label();
+            this.resumeSyncCheckBox = new System.Windows.Forms.CheckBox();
             this.vssGroupBox.SuspendLayout();
             this.statusStrip.SuspendLayout();
             this.outputGroupBox.SuspendLayout();
@@ -231,6 +234,8 @@
             // 
             this.outputGroupBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.outputGroupBox.Controls.Add(this.branchTextBox);
+            this.outputGroupBox.Controls.Add(this.branchLabel);
             this.outputGroupBox.Controls.Add(this.forceAnnotatedCheckBox);
             this.outputGroupBox.Controls.Add(this.transcodeCheckBox);
             this.outputGroupBox.Controls.Add(this.domainTextBox);
@@ -276,7 +281,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.domainTextBox.Location = new System.Drawing.Point(81, 45);
             this.domainTextBox.Name = "domainTextBox";
-            this.domainTextBox.Size = new System.Drawing.Size(473, 20);
+            this.domainTextBox.Size = new System.Drawing.Size(175, 20);
             this.domainTextBox.TabIndex = 3;
             // 
             // domainLabel
@@ -422,6 +427,37 @@
             this.alternateLogicCheckBox.TabIndex = 6;
             this.alternateLogicCheckBox.Text = "Use Alternate Logic";
             this.alternateLogicCheckBox.UseVisualStyleBackColor = true;
+            this.alternateLogicCheckBox.CheckedChanged += new System.EventHandler(this.alternateLogicCheckBox_CheckedChanged);
+            // 
+            // branchTextBox
+            // 
+            this.branchTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.branchTextBox.Location = new System.Drawing.Point(379, 45);
+            this.branchTextBox.Name = "branchTextBox";
+            this.branchTextBox.Size = new System.Drawing.Size(175, 20);
+            this.branchTextBox.TabIndex = 4;
+            // 
+            // branchLabel
+            // 
+            this.branchLabel.AutoSize = true;
+            this.branchLabel.Location = new System.Drawing.Point(287, 48);
+            this.branchLabel.Name = "branchLabel";
+            this.branchLabel.Size = new System.Drawing.Size(87, 13);
+            this.branchLabel.TabIndex = 8;
+            this.branchLabel.Text = "Branch (optional)";
+            // 
+            // resumeSyncCheckBox
+            // 
+            this.resumeSyncCheckBox.AutoSize = true;
+            this.resumeSyncCheckBox.Checked = true;
+            this.resumeSyncCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.resumeSyncCheckBox.Location = new System.Drawing.Point(146, 351);
+            this.resumeSyncCheckBox.Name = "resumeSyncCheckBox";
+            this.resumeSyncCheckBox.Size = new System.Drawing.Size(92, 17);
+            this.resumeSyncCheckBox.TabIndex = 9;
+            this.resumeSyncCheckBox.Text = "Resume Sync";
+            this.resumeSyncCheckBox.UseVisualStyleBackColor = true;
             // 
             // MainForm
             // 
@@ -430,6 +466,7 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.cancelButton;
             this.ClientSize = new System.Drawing.Size(584, 402);
+            this.Controls.Add(this.resumeSyncCheckBox);
             this.Controls.Add(this.alternateLogicCheckBox);
             this.Controls.Add(this.changesetGroupBox);
             this.Controls.Add(this.cancelButton);
@@ -496,6 +533,9 @@
         private System.Windows.Forms.CheckBox transcodeCheckBox;
         private System.Windows.Forms.CheckBox forceAnnotatedCheckBox;
         private System.Windows.Forms.CheckBox alternateLogicCheckBox;
+        private System.Windows.Forms.CheckBox resumeSyncCheckBox;
+        private System.Windows.Forms.TextBox branchTextBox;
+        private System.Windows.Forms.Label branchLabel;
 
     }
 }

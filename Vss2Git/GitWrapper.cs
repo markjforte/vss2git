@@ -20,6 +20,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading;
+using System.Text.RegularExpressions;
 
 namespace Hpdi.Vss2Git
 {
@@ -202,6 +203,44 @@ namespace Hpdi.Vss2Git
             }
         }
 
+        private static Regex alreadyOnBranchRegex = new Regex("^On branch\\s*(\\S+)", RegexOptions.Multiline);
+
+        public void VerifyCurrentBranch(string branch)
+        {
+            var startInfo = GetStartInfo("status");
+            string stdout, stderr;
+            int exitCode = Execute(startInfo, out stdout, out stderr);
+            if (exitCode != 0)
+                FailExitCode(startInfo.FileName, startInfo.Arguments, stdout, stderr, exitCode);
+
+            var m = alreadyOnBranchRegex.Match(stdout);
+            if (!m.Success)
+                throw new Exception("VerifyCurrentBranch - Unable to determine branch - "+stdout);
+
+            if (branch != m.Groups[1].Value)
+                throw new Exception("VerifyCurrentBranch - Branch mismatch - "+stdout);                
+        }
+
+        private static Regex lastCommitTimestampRegex = new Regex("^Date:\\s*(\\S+)", RegexOptions.Multiline);
+ 
+        public DateTime GetLastCommit()
+        {
+            var startInfo = GetStartInfo("log -n 1 --date=raw");
+            string stdout, stderr;
+            int exitCode = Execute(startInfo, out stdout, out stderr);
+            if (exitCode != 0)
+                FailExitCode(startInfo.FileName, startInfo.Arguments, stdout, stderr, exitCode);
+
+            var m = lastCommitTimestampRegex.Match(stdout);
+            if (!m.Success)
+                throw new Exception("GetLastCommit - Unable to determine time of last commit - "+stdout);
+
+            long unixTimeStamp = long.Parse(m.Groups[1].Value);
+            DateTime dt = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
+            dt = dt.AddSeconds(unixTimeStamp).ToLocalTime();
+            return dt;
+        }
+ 
         public bool Commit(string authorName, string authorEmail, string comment, DateTime localTime)
         {
             TempFile commentFile;
